@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body{
+      font-family: Arial;
+      background:#f3f4f6;
+      padding:20px;
+      max-width:600px;
+      margin:auto;
+    }
+
+    .card{
+      background:white;
+      padding:20px;
+      border-radius:16px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    h2{margin:0 0 10px 0;}
+
+    label{
+      display:block;
+      margin-top:15px;
+      font-weight:600;
+      font-size:14px;
+    }
+
+    input,select,textarea{
+      width:100%;
+      padding:14px;
+      margin-top:6px;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      font-size:16px;
+      box-sizing:border-box;
+    }
+
+    textarea{resize:none;}
+
+    button{
+      margin-top:20px;
+      width:100%;
+      padding:16px;
+      font-size:18px;
+      font-weight:bold;
+      border:none;
+      border-radius:14px;
+      background:#2563eb;
+      color:white;
+      cursor:pointer;
+      transition:0.2s;
+    }
+
+    button:disabled{
+      opacity:0.6;
+      cursor:not-allowed;
+    }
+
+    #msg{
+      margin-top:15px;
+      padding:12px;
+      border-radius:12px;
+      display:none;
+      font-weight:600;
+    }
+
+    .ok{ background:#dcfce7; color:#166534; }
+    .err{ background:#fee2e2; color:#991b1b; }
+  </style>
+</head>
+
+<body>
+<div class="card">
+
+<h2>Production Report</h2>
+
+<label>Date</label>
+<input type="date" id="date">
+
+<label>Production Line</label>
+<select id="line">
+  <option value="">-- Select Line --</option>
+</select>
+
+<label>Shift</label>
+<select id="shift">
+  <option value="">-- Select Shift --</option>
+  <option value="1">1st Shift</option>
+  <option value="2">2nd Shift</option>
+  <option value="3">3rd Shift</option>
+</select>
+
+<label>Manpower</label>
+<input type="number" id="manpower">
+
+<label>Achieved</label>
+<input type="number" id="achieved">
+
+<label>Remark</label>
+<textarea id="remark"></textarea>
+
+<label>Recorder Name</label>
+<input type="text" id="recorder">
+
+<button id="saveBtn" onclick="save()">Save</button>
+
+<div id="msg"></div>
+
+</div>
+
+<script>
+
+document.getElementById("date").valueAsDate = new Date();
+
+function showMsg(text, ok){
+  const box = document.getElementById("msg");
+  box.className = ok ? "ok" : "err";
+  box.innerText = text;
+  box.style.display = "block";
+  setTimeout(()=> box.style.display="none",4000);
+}
+
+/* Fetch lines from MASTER */
+google.script.run.withSuccessHandler(function(data){
+  const select = document.getElementById("line");
+  data.forEach(l=>{
+    const opt=document.createElement("option");
+    opt.value=l.line;
+    opt.text = l.line;
+    select.appendChild(opt);
+  });
+}).getLineMaster();
+
+function save(){
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true;   // block double click
+
+  const payload = {
+    date: document.getElementById("date").value,
+    line: document.getElementById("line").value,
+    shift: document.getElementById("shift").value,
+    manpower: document.getElementById("manpower").value,
+    achieved: document.getElementById("achieved").value,
+    remark: document.getElementById("remark").value,
+    recorder: document.getElementById("recorder").value
+  };
+
+  if(!payload.date){
+    showMsg("Date is required.", false);
+    btn.disabled = false;
+    return;
+  }
+
+  if(!payload.line){
+    showMsg("Please select a Production Line.", false);
+    btn.disabled = false;
+    return;
+  }
+
+  if(!payload.shift){
+    showMsg("Please select Shift.", false);
+    btn.disabled = false;
+    return;
+  }
+
+  if(!payload.manpower){
+    showMsg("Manpower is required.", false);
+    btn.disabled = false;
+    return;
+  }
+
+  if(!payload.achieved){
+    showMsg("Achieved quantity is required.", false);
+    btn.disabled = false;
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(res=>{
+      showMsg(res.message,res.ok);
+      if(res.ok){
+        document.getElementById("achieved").value="";
+        document.getElementById("manpower").value="";
+        document.getElementById("remark").value="";
+        document.getElementById("line").value="";
+        document.getElementById("shift").value="";
+      }
+      btn.disabled=false;
+    })
+    .withFailureHandler(err=>{
+      showMsg("Server Error: "+err.message,false);
+      btn.disabled=false;
+    })
+    .submitData(payload);
+}
+
+</script>
+</body>
+</html>
