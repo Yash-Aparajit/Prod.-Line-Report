@@ -7,24 +7,35 @@
   <style>
     body{
       font-family: Arial;
-      background:#f3f4f6;
+      background:#eef2f7;
       padding:20px;
-      max-width:600px;
+      max-width:650px;
       margin:auto;
     }
 
     .card{
       background:white;
-      padding:20px;
-      border-radius:16px;
-      box-shadow:0 10px 25px rgba(0,0,0,0.08);
+      padding:24px;
+      border-radius:18px;
+      box-shadow:0 15px 35px rgba(0,0,0,0.08);
     }
 
-    h2{margin:0 0 10px 0;}
+    h2{
+      margin:0 0 15px 0;
+      font-size:24px;
+    }
+
+    .section-title{
+      margin-top:22px;
+      font-weight:700;
+      font-size:15px;
+      border-bottom:2px solid #e5e7eb;
+      padding-bottom:6px;
+    }
 
     label{
       display:block;
-      margin-top:15px;
+      margin-top:14px;
       font-weight:600;
       font-size:14px;
     }
@@ -34,49 +45,88 @@
       padding:14px;
       margin-top:6px;
       border-radius:12px;
-      border:1px solid #e5e7eb;
+      border:1px solid #d1d5db;
       font-size:16px;
       box-sizing:border-box;
     }
 
-    textarea{resize:none;}
+    textarea{ resize:none; }
 
-    button{
-      margin-top:20px;
+    /* Shift buttons */
+    .shift-buttons{
+      display:flex;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .shift-btn{
+      flex:1;
+      padding:14px;
+      font-size:16px;
+      font-weight:bold;
+      border-radius:12px;
+      border:2px solid #2563eb;
+      background:white;
+      color:#2563eb;
+      cursor:pointer;
+      transition:0.2s;
+    }
+
+    .shift-btn.active{
+      background:#2563eb;
+      color:white;
+    }
+
+    .shift-btn.submitted{
+      background:#16a34a;
+      border-color:#16a34a;
+      color:white;
+    }
+
+    button.save-btn{
+      margin-top:24px;
       width:100%;
-      padding:16px;
+      padding:18px;
       font-size:18px;
       font-weight:bold;
       border:none;
       border-radius:14px;
-      background:#2563eb;
+      background:#1d4ed8;
       color:white;
       cursor:pointer;
       transition:0.2s;
     }
 
-    button:disabled{
+    button.save-btn:disabled{
       opacity:0.6;
       cursor:not-allowed;
     }
 
-    #msg{
-      margin-top:15px;
-      padding:12px;
-      border-radius:12px;
+    #statusBanner{
+      margin-top:18px;
+      padding:14px;
+      border-radius:14px;
+      font-weight:700;
       display:none;
-      font-weight:600;
     }
 
-    .ok{ background:#dcfce7; color:#166534; }
-    .err{ background:#fee2e2; color:#991b1b; }
+    .success{
+      background:#dcfce7;
+      color:#166534;
+    }
+
+    .error{
+      background:#fee2e2;
+      color:#991b1b;
+    }
+
   </style>
 </head>
 
 <body>
 <div class="card">
 
-<h2>Production Report</h2>
+<h2>Production Control Panel</h2>
 
 <label>Date</label>
 <input type="date" id="date">
@@ -86,13 +136,16 @@
   <option value="">-- Select Line --</option>
 </select>
 
-<label>Shift</label>
-<select id="shift">
-  <option value="">-- Select Shift --</option>
-  <option value="1">1st Shift</option>
-  <option value="2">2nd Shift</option>
-  <option value="3">3rd Shift</option>
-</select>
+<div class="section-title">Shift Selection</div>
+<div class="shift-buttons">
+  <button type="button" class="shift-btn" data-shift="1">1st Shift</button>
+  <button type="button" class="shift-btn" data-shift="2">2nd Shift</button>
+  <button type="button" class="shift-btn" data-shift="3">3rd Shift</button>
+</div>
+
+<input type="hidden" id="shift">
+
+<div class="section-title">Performance Input</div>
 
 <label>Manpower</label>
 <input type="number" id="manpower">
@@ -100,15 +153,17 @@
 <label>Achieved</label>
 <input type="number" id="achieved">
 
+<div class="section-title">Remarks</div>
+
 <label>Remark</label>
 <textarea id="remark"></textarea>
 
 <label>Recorder Name</label>
 <input type="text" id="recorder">
 
-<button id="saveBtn" onclick="save()">Save</button>
+<button class="save-btn" id="saveBtn" onclick="save()">Save Shift</button>
 
-<div id="msg"></div>
+<div id="statusBanner"></div>
 
 </div>
 
@@ -116,15 +171,27 @@
 
 document.getElementById("date").valueAsDate = new Date();
 
-function showMsg(text, ok){
-  const box = document.getElementById("msg");
-  box.className = ok ? "ok" : "err";
-  box.innerText = text;
-  box.style.display = "block";
-  setTimeout(()=> box.style.display="none",4000);
+const shiftButtons = document.querySelectorAll(".shift-btn");
+
+shiftButtons.forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    shiftButtons.forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("shift").value = btn.dataset.shift;
+
+    // Auto focus manpower after shift select
+    document.getElementById("manpower").focus();
+  });
+});
+
+function showStatus(message, success){
+  const banner = document.getElementById("statusBanner");
+  banner.className = success ? "success" : "error";
+  banner.innerText = message;
+  banner.style.display = "block";
 }
 
-/* Fetch lines from MASTER */
+/* Fetch lines */
 google.script.run.withSuccessHandler(function(data){
   const select = document.getElementById("line");
   data.forEach(l=>{
@@ -138,7 +205,7 @@ google.script.run.withSuccessHandler(function(data){
 function save(){
 
   const btn = document.getElementById("saveBtn");
-  btn.disabled = true;   // block double click
+  btn.disabled = true;
 
   const payload = {
     date: document.getElementById("date").value,
@@ -150,50 +217,36 @@ function save(){
     recorder: document.getElementById("recorder").value
   };
 
-  if(!payload.date){
-    showMsg("Date is required.", false);
-    btn.disabled = false;
-    return;
-  }
-
-  if(!payload.line){
-    showMsg("Please select a Production Line.", false);
-    btn.disabled = false;
-    return;
-  }
-
-  if(!payload.shift){
-    showMsg("Please select Shift.", false);
-    btn.disabled = false;
-    return;
-  }
-
-  if(!payload.manpower){
-    showMsg("Manpower is required.", false);
-    btn.disabled = false;
-    return;
-  }
-
-  if(!payload.achieved){
-    showMsg("Achieved quantity is required.", false);
+  if(!payload.line || !payload.shift || !payload.manpower || !payload.achieved){
+    showStatus("All required fields must be filled.", false);
     btn.disabled = false;
     return;
   }
 
   google.script.run
     .withSuccessHandler(res=>{
-      showMsg(res.message,res.ok);
+      showStatus(res.message,res.ok);
+
       if(res.ok){
-        document.getElementById("achieved").value="";
+
+        // Mark shift as submitted visually
+        shiftButtons.forEach(b=>{
+          if(b.dataset.shift === payload.shift){
+            b.classList.remove("active");
+            b.classList.add("submitted");
+          }
+        });
+
         document.getElementById("manpower").value="";
+        document.getElementById("achieved").value="";
         document.getElementById("remark").value="";
-        document.getElementById("line").value="";
         document.getElementById("shift").value="";
       }
+
       btn.disabled=false;
     })
     .withFailureHandler(err=>{
-      showMsg("Server Error: "+err.message,false);
+      showStatus("Server Error: "+err.message,false);
       btn.disabled=false;
     })
     .submitData(payload);
